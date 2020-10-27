@@ -213,14 +213,27 @@ def extract_followers(browser, username):
         followers.append(val)
 
     return followers
-
-
-def get_num_posts(browser, num_of_posts_to_do):
+#RISHABH
+def get_num_posts(browser, ig_user, num_of_posts_to_do):
     """Get all posts from user"""
     links = []
     links2 = []
     preview_imgs = {}
 
+    #Rishabh
+    removed_hurdles = False
+    #check for existing posts list
+    import os.path
+    from pathlib import Path
+    Path(ig_user.username).mkdir(parents=True, exist_ok=True)
+    if (os.path.isfile(ig_user.username + "/" + ig_user.username + "_posts.txt")):
+        print("Posts list exist, not fetching again.")
+        with open(ig_user.username + "/" + ig_user.username + "_posts.txt", "r") as f:
+            links2 = f.readlines()
+        links2 = [l.strip() for l in links2]
+        return links2, preview_imgs
+
+    print("Fetching posts list...")
     # list links contains 30 links from the current view, as that is the maximum Instagram is showing at one time
     # list links2 contains all the links collected so far
     # preview_imgs dictionary maps link in links2 to link's post's preview image src
@@ -231,6 +244,12 @@ def get_num_posts(browser, num_of_posts_to_do):
         #  ('//a[contains(@class, "_1cr2e _epyes")]')
         # body_elem.send_keys(Keys.END)
         # sleep(3)
+        try:
+            more_posts_btn = body_elem.find_element_by_xpath("//*[contains(text(), 'Show More Posts')]")
+            browser.execute_script("arguments[0].click();", more_posts_btn)
+            print("clicked to get more posts")
+        except Exception as e:
+            print("no more posts")
 
         previouslen = 0
         breaking = 0
@@ -270,6 +289,22 @@ def get_num_posts(browser, num_of_posts_to_do):
                 breaking += 1
                 InstaLogger.logger().info(
                     f"breaking in {4 - breaking}...\nIf you believe this is only caused by slow internet, increase sleep time 'sleep_time_between_post_scroll' in settings.py")
+                # remove_log_in() - RISHABH
+                if(not removed_hurdles):
+                    sleep(Settings.sleep_time_between_post_scroll)
+                    print("removing hurdles...")
+                    pop_up = body_elem.find_element_by_class_name('RnEpo')
+                    # print(pop_up)
+                    browser.execute_script("""
+                    var element = arguments[0];
+                    element.parentNode.removeChild(element);
+                    """, pop_up)
+                    # print(pop_up)
+                    # set body style overflow to none
+                    browser.execute_script("arguments[0].style = 'overflow:none'", body_elem)
+                    removed_hurdles = True
+                    sleep(Settings.sleep_time_between_post_scroll)
+
             else:
                 breaking = 0
             if breaking > 3:
@@ -282,11 +317,15 @@ def get_num_posts(browser, num_of_posts_to_do):
     except NoSuchElementException as err:
         InstaLogger.logger().error('Something went terribly wrong')
 
+    #save to list
+    print("Saving posts list to file " + ig_user.username + "/" + ig_user.username + "_posts.txt")
+    with open(ig_user.username + "/" + ig_user.username + "_posts.txt", "w+") as f:
+        f.write("\n".join(links2))
     return links2, preview_imgs
 
 
-def extract_user_posts(browser, num_of_posts_to_do):
-    links2, preview_imgs = get_num_posts(browser, num_of_posts_to_do)
+def extract_user_posts(browser, ig_user, num_of_posts_to_do):
+    links2, preview_imgs = get_num_posts(browser, ig_user, num_of_posts_to_do)
 
     post_infos = []
 
@@ -294,7 +333,16 @@ def extract_user_posts(browser, num_of_posts_to_do):
     # into user_commented_total_list I will add all username links who commented on any post of this user
     user_commented_total_list = []
 
+    with open(ig_user.username + "/" + ig_user.username + "_posts.txt", "r") as f:
+        link_temp = [item.strip() for item in f.readlines()]
+
     for postlink in links2:
+        
+        print(postlink)
+        if([item.strip() for item in link_temp if postlink in item][0].startswith("#")):
+            print("Post: ", postlink.split("/")[-2], " already fetched.")
+            continue
+
 
         InstaLogger.logger().info(f"\n {counter} / {len(links2)}")
         counter = counter + 1
@@ -312,7 +360,7 @@ def extract_user_posts(browser, num_of_posts_to_do):
             }
 
             post_infos.append({
-                'caption': instagram_post.get('caption', 'None'),
+                'caption': instagram_post.caption, #instagram_post.get('caption', 'None'),
                 'location': location,
                 'imgs': instagram_post.imgs,
                 'imgdesc': instagram_post.imgdesc,
@@ -335,6 +383,15 @@ def extract_user_posts(browser, num_of_posts_to_do):
         except NoSuchElementException as err:
             InstaLogger.logger().error("Could not get information from post: " + instagram_post.postlink)
             InstaLogger.logger().error(err)
+
+        #RISHABH
+        print("Post: ", postlink.split("/")[-2], " fetching complete.")
+        
+        # save # in the file
+        link_temp[link_temp.index(postlink)] = "# " + postlink
+        with open(ig_user.username + "/" + ig_user.username + "_posts.txt", "w") as f:
+            f.write("\n".join(link_temp))
+
     return post_infos, user_commented_total_list
 
 
@@ -456,7 +513,8 @@ def extract_information(browser, username, limit_amount):
     post_infos = []
     user_commented_total_list = []
     if Settings.scrape_posts_infos is True and isprivate is False:
-        post_infos, user_commented_total_list = quick_post_extract(browser, num_of_posts_to_do)
+        # post_infos, user_commented_total_list = quick_post_extract(browser, num_of_posts_to_do)
+        post_infos, user_commented_total_list = extract_user_posts(browser, ig_user, num_of_posts_to_do)
 
     ig_user.posts = post_infos
     ig_user.scraped = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")

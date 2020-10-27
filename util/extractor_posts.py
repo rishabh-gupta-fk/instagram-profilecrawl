@@ -188,28 +188,62 @@ class InstagramPost:
         return findall(r'#\w+', caption)
 
     def extract_comments(self):
+        print("extracting comments")
         comments_found_last_run = 0
         comments_run_same_length = 0
         comments = []
 
         try:
-            if self.post.find_elements_by_tag_name('ul'):
-                comment_list = self.post.find_element_by_tag_name('ul')
-                comments = comment_list.find_elements_by_tag_name('li')
+            # if self.post.find_elements_by_tag_name('ul'):
+            #     comment_list = self.post.find_element_by_tag_name('ul')
+            #     comments = comment_list.find_elements_by_tag_name('li')
+            #     print("hello")
+            #     """
+            #     if len(comments) > 1:
+            #         # load hidden comments
+            #         comments = load_more_comments(comments)
+            #         InstaLogger.logger().info(f"found comments: {len(comments)}")
 
-                """
-                if len(comments) > 1:
-                    # load hidden comments
-                    comments = load_more_comments(comments)
-                    InstaLogger.logger().info(f"found comments: {len(comments)}")
+            #     else:
+            #         InstaLogger.logger().info("found comment: 1")
+            #     """
 
-                else:
-                    InstaLogger.logger().info("found comment: 1")
-                """
+            # RISHABH
+            while self.browser.find_element_by_class_name('dCJp8'):
+                more_button = self.browser.find_element_by_class_name('dCJp8')
+                InstaLogger.logger().info("clicking button for loading more comments")
+                self.browser.execute_script("arguments[0].click();", more_button)
+                sleep(Settings.sleep_time_between_comment_loading)
+            
+
         except BaseException as e:
             InstaLogger.logger().error(e)
         except:
+            InstaLogger.logger().error("Error - getting more comments")
+        print("Loaded all comments.")
+        try:    
+            if self.browser.find_element_by_class_name('C4VMK'):
+                cmnts = self.browser.find_elements_by_class_name('C4VMK')
+                cmnt_text = []
+                for cmnt in cmnts:
+                    c = cmnt.find_elements_by_tag_name('span')[-1].get_attribute('innerHTML')
+                    u = cmnt.find_element_by_class_name('_6lAjh').find_element_by_tag_name('a').get_attribute('innerHTML')
+                    cmnt_text.append((u, c))
+
+            #save comments in a file - RISHABH
+            post_name = self.postlink.split("/")[-2]
+            print("saving to file: " + self.username + "/" + post_name + ".txt")
+            with open(self.username + "/" + post_name + ".txt", 'w+') as f:
+                f.write("author\tpostlink\tcommenter\tcomment\n")
+                for t in cmnt_text:
+                    f.write(self.username + "\t")
+                    f.write(post_name + "\t")
+                    f.write('\t'.join(str(s) for s in t) + '\n')
+                    
+        except:
             InstaLogger.logger().error("Error - getting comments")
+
+        
 
         return comments, int(len(comments) - 1)
 

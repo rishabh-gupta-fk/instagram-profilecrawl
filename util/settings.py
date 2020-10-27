@@ -18,13 +18,13 @@ class Settings:
     profile_location = os.path.join(BASE_DIR, 'profiles')
     profile_commentors_location = os.path.join(BASE_DIR, 'profiles')
     profile_file_with_timestamp = True
-    profile_commentors_file_with_timestamp = True
-    limit_amount = 1000
+    profile_commentors_file_with_timestamp = False
+    limit_amount = 9999999    #rishabh
     scrape_posts_infos = True
     scrape_posts_likers = False
     scrape_follower = False
-    output_comments = False
-    sleep_time_between_post_scroll = 14.5
+    output_comments = True
+    sleep_time_between_post_scroll = 3
     sleep_time_between_comment_loading = 1.5
     mentions = True
 
@@ -39,6 +39,9 @@ class Settings:
 
     login_username = IG_USERNAME
     login_password = IG_PASSWORD
+
+    # login_username = "_easy_._"
+    # login_password = "instagram_ka_password"
 
     # chromedriver
     chromedriver_min_version = 2.36
